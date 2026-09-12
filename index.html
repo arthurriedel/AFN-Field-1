@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#EDEFE9">
+<title>AFN-II Houshold Sampling</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<!-- iOS reads these, not the manifest, when adding to the home screen -->
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Sample Draw">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Draws a reproducible simple random sample from a numbered frame and splits it into one unique block per enumerator. Works offline.">
+<style>
+  :root{
+    --paper:#EDEFE9;
+    --panel:#FFFFFF;
+    --ink:#14201A;
+    --muted:#5C6961;
+    --line:#CBD3C9;
+    --accent:#17563B;
+    --accent-soft:#DCE8DE;
+    --reserve:#2C5578;
+    --reserve-soft:#DDE5EC;
+    --alert:#8A2B12;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:17px;
+    line-height:1.45;
+    -webkit-text-size-adjust:100%;
+    padding:20px 16px calc(48px + env(safe-area-inset-bottom));
+    max-width:640px;
+    margin:0 auto;
+  }
+  h1{
+    font-size:26px;
+    line-height:1.1;
+    letter-spacing:-0.02em;
+    margin:0 0 4px;
+    font-weight:650;
+  }
+  .lede{color:var(--muted);font-size:15px;margin:0 0 28px;max-width:46ch;}
+
+  .field{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    border-bottom:1px solid var(--line);
+    padding:14px 0;
+  }
+  .field label{flex:1;font-size:16px;}
+  .field .hint{display:block;color:var(--muted);font-size:13.5px;line-height:1.3;margin-top:2px;}
+  .field input{
+    width:6.5ch;
+    flex:none;
+    font-family:var(--mono);
+    font-size:26px;
+    font-weight:600;
+    text-align:right;
+    color:var(--ink);
+    background:transparent;
+    border:none;
+    border-bottom:2px solid var(--accent);
+    border-radius:0;
+    padding:2px 2px 4px;
+    -moz-appearance:textfield;
+  }
+  .field input::-webkit-outer-spin-button,
+  .field input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .field input:focus{outline:none;background:var(--accent-soft);}
+  .field input.wide{width:9ch;font-size:20px;letter-spacing:0.08em;text-transform:uppercase;}
+
+  .field.stacked{display:block;}
+  .field input.text{
+    width:100%;
+    text-align:left;
+    font-family:var(--sans);
+    font-size:20px;
+    font-weight:500;
+    margin-top:8px;
+    padding:4px 2px 6px;
+  }
+  .field input.text::placeholder{color:#A6B0A8;font-weight:400;}
+
+  .exports{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:26px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+  }
+  .exports button{
+    flex:1 1 auto;
+    min-width:44%;
+    padding:14px 12px;
+    font-family:inherit;
+    font-size:16px;
+    font-weight:600;
+    color:var(--accent);
+    background:var(--panel);
+    border:1.5px solid var(--accent);
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .exports button:active{background:var(--accent-soft);}
+  .exports .filename{
+    flex:1 1 100%;
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--muted);
+    word-break:break-all;
+  }
+
+  .seedrow{display:flex;align-items:center;gap:10px;justify-content:flex-end;}
+  .mini{
+    font-family:var(--sans);
+    font-size:13px;
+    color:var(--accent);
+    background:none;
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:5px 11px;
+    cursor:pointer;
+  }
+  .mini:active{background:var(--accent-soft);}
+
+  #draw{
+    display:block;
+    width:100%;
+    margin:26px 0 0;
+    padding:17px;
+    font-family:inherit;
+    font-size:19px;
+    font-weight:600;
+    color:#fff;
+    background:var(--accent);
+    border:none;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  #draw:active{background:#0F3F2A;}
+  button:focus-visible, input:focus-visible{outline:2px solid var(--reserve);outline-offset:2px;}
+
+  .error{
+    color:var(--alert);
+    font-size:15px;
+    margin-top:14px;
+    padding-left:13px;
+    border-left:3px solid var(--alert);
+  }
+  .error:empty{display:none;}
+
+  #out{margin-top:34px;}
+  #out:empty{display:none;}
+
+  .stamp{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px 22px;
+    padding:14px 16px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    font-size:14px;
+    color:var(--muted);
+  }
+  .stamp b{
+    display:block;
+    font-family:var(--mono);
+    font-size:17px;
+    color:var(--ink);
+    font-weight:600;
+    letter-spacing:0.04em;
+  }
+
+  .block{margin-top:22px;}
+  .blockhead{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:12px;
+    padding-bottom:7px;
+    border-bottom:2px solid var(--ink);
+  }
+  .blockhead h2{font-size:18px;margin:0;font-weight:650;}
+  .blockhead span{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .block.reserve .blockhead{border-bottom-color:var(--reserve);}
+  .block.reserve h2{color:var(--reserve);}
+
+  .nums{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(5.4ch, 1fr));
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-top:none;
+  }
+  .nums span{
+    background:var(--panel);
+    font-family:var(--mono);
+    font-size:15px;
+    font-variant-numeric:tabular-nums;
+    text-align:center;
+    padding:9px 2px;
+  }
+  .block.reserve .nums span{background:var(--reserve-soft);}
+
+  .tools{display:flex;gap:8px;margin-top:9px;}
+  .copytext{
+    width:100%;
+    margin-top:9px;
+    font-family:var(--mono);
+    font-size:14px;
+    line-height:1.5;
+    padding:10px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    color:var(--ink);
+    min-height:90px;
+  }
+  .copytext[hidden]{display:none;}
+
+  .banner{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin:0 0 20px;
+    padding:12px 14px;
+    background:var(--accent-soft);
+    border:1px solid var(--accent);
+    border-radius:3px;
+    font-size:15px;
+  }
+  .banner[hidden]{display:none;}
+  .banner p{margin:0;flex:1 1 14ch;}
+  .banner button{
+    font-family:inherit;
+    font-size:14px;
+    font-weight:600;
+    color:#fff;
+    background:var(--accent);
+    border:none;
+    border-radius:3px;
+    padding:8px 14px;
+    cursor:pointer;
+  }
+  .banner .ghost{
+    color:var(--accent);
+    background:none;
+    border:1px solid var(--accent);
+    font-weight:500;
+  }
+
+  footer{margin-top:40px;font-size:13.5px;color:var(--muted);}
+  footer p{margin:0 0 6px;}
+  @media print{
+    body{background:#fff;padding:0;max-width:none;}
+    form, footer, .tools, #draw, .banner{display:none;}
+    .nums span{background:#fff;}
+  }
+</style>
+</head>
+<body>
+
+<div class="banner" id="updatebar" hidden>
+  <p>A newer version of this app is ready.</p>
+  <button type="button" id="doupdate">Update now</button>
+  <button type="button" class="ghost" id="dismissupdate">Later</button>
+</div>
+
+<div class="banner" id="installbar" hidden>
+  <p>Install this on your phone to use it with no signal.</p>
+  <button type="button" id="doinstall">Install</button>
+  <button type="button" class="ghost" id="dismissinstall">Not now</button>
+</div>
+
+<h1>Sample draw</h1>
+<p class="lede">Draws a simple random sample from a numbered frame and splits it into one unique block per enumerator. No overlap between blocks.</p>
+
+<form id="form" autocomplete="off">
+  <div class="field stacked">
+    <label for="village">Village
+      <span class="hint">Goes on the record and in the file name.</span>
+    </label>
+    <input id="village" class="text" type="text" placeholder="Village name">
+  </div>
+
+  <div class="field">
+    <label for="total">Number of households in the village (sample frame)
+      <span class="hint">The draw covers 1 to this number.</span>
+    </label>
+    <input id="total" type="number" inputmode="numeric" min="1" step="1" value="1000">
+  </div>
+
+  <div class="field">
+    <label for="sample">Sample (households) required</label>
+    <input id="sample" type="number" inputmode="numeric" min="1" step="1" value="300">
+  </div>
+
+  <div class="field">
+    <label for="teams">Enumerators
+      <span class="hint">Remainders go to the first blocks.</span>
+    </label>
+    <input id="teams" type="number" inputmode="numeric" min="1" step="1" value="6">
+  </div>
+
+  <div class="field">
+    <label for="reserve">Reserves
+      <span class="hint">Extra numbers, in order, for refusals and non-contacts.</span>
+    </label>
+    <input id="reserve" type="number" inputmode="numeric" min="0" step="1" value="30">
+  </div>
+
+  <div class="field">
+    <label for="seed">Seed
+      <span class="hint">Note this. The same seed and inputs always reproduce the same draw.</span>
+    </label>
+    <span class="seedrow">
+      <button type="button" class="mini" id="newseed">New</button>
+      <input id="seed" class="wide" type="text" maxlength="8" value="">
+    </span>
+  </div>
+
+  <button type="submit" id="draw">Draw sample</button>
+  <p class="error" id="error"></p>
+</form>
+
+<div id="out"></div>
+
+<footer>
+  <p>Works offline. Once the app has loaded here, it keeps working with no signal.</p>
+  <p id="installhint" hidden>On iPhone: tap the Share button in Safari, then <b>Add to Home Screen</b>.</p>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  // --- seeded PRNG: string seed -> 32-bit state -> mulberry32 ---
+  function hashSeed(str){
+    var h = 1779033703 ^ str.length;
+    for (var i = 0; i < str.length; i++){
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    return (h ^ (h >>> 16)) >>> 0;
+  }
+  function mulberry32(a){
+    return function(){
+      a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  // unbiased integer in [0, max] using rejection on the raw 32-bit space
+  function intBelow(rand, n){
+    var limit = Math.floor(4294967296 / n) * n, x;
+    do { x = Math.floor(rand() * 4294967296); } while (x >= limit);
+    return x % n;
+  }
+
+  // Floyd's algorithm: k distinct values from [0, n-1], memory O(k)
+  function distinct(rand, n, k){
+    var set = new Set();
+    for (var j = n - k; j < n; j++){
+      var t = intBelow(rand, j + 1);
+      if (set.has(t)) set.add(j); else set.add(t);
+    }
+    return Array.from(set);
+  }
+  function shuffle(rand, arr){
+    for (var i = arr.length - 1; i > 0; i--){
+      var j = intBelow(rand, i + 1);
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  var ALPHABET = "ACDEFGHJKLMNPQRTUVWXY34679"; // no lookalike characters
+  function makeSeed(){
+    var s = "";
+    for (var i = 0; i < 6; i++) s += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+    return s;
+  }
+
+  var $ = function(id){ return document.getElementById(id); };
+  var out = $("out"), err = $("error");
+
+  $("seed").value = makeSeed();
+  $("newseed").addEventListener("click", function(){
+    $("seed").value = makeSeed();
+    $("seed").focus();
+  });
+
+  function intVal(id){
+    var v = $(id).value.trim();
+    if (!/^\d+$/.test(v)) return NaN;
+    return parseInt(v, 10);
+  }
+
+  function stamp(){
+    var d = new Date(), p = function(x){ return String(x).padStart(2, "0"); };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) +
+           " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  }
+
+  function copy(text, button){
+    var done = function(){
+      var old = button.textContent;
+      button.textContent = "Copied";
+      setTimeout(function(){ button.textContent = old; }, 1400);
+    };
+    if (navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(text).then(done, function(){ fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  }
+  function fallback(text, done){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    try { document.execCommand("copy"); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  function slug(s){
+    var t = s.trim().replace(/\s+/g, "-").replace(/[\\/:*?"<>|.,]+/g, "");
+    return t.slice(0, 40) || "village";
+  }
+  function fileStamp(){
+    var d = new Date(), p = function(x){ return String(x).padStart(2, "0"); };
+    return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes());
+  }
+  function csvCell(v){
+    v = String(v);
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }
+  function buildCSV(meta, rows){
+    var lines = [];
+    lines.push(["village","seed","drawn_at","frame_total","sample_size","enumerators","reserves","assigned_to","position","number"].join(","));
+    for (var i = 0; i < rows.length; i++){
+      lines.push([
+        meta.village, meta.seed, meta.drawn, meta.N, meta.n, meta.k, meta.r,
+        rows[i][0], rows[i][1], rows[i][2]
+      ].map(csvCell).join(","));
+    }
+    return "\uFEFF" + lines.join("\r\n") + "\r\n";
+  }
+  function saveFile(csv, name, button){
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    var old = button.textContent;
+    button.textContent = "Saved";
+    setTimeout(function(){ button.textContent = old; }, 1600);
+  }
+  function shareFile(csv, name){
+    var file = new File([csv], name, { type: "text/csv" });
+    navigator.share({ files: [file], title: name }).catch(function(){});
+  }
+  function canShareFiles(csv, name){
+    try {
+      return !!(navigator.canShare && navigator.share &&
+        navigator.canShare({ files: [new File([csv], name, { type: "text/csv" })] }));
+    } catch (e) { return false; }
+  }
+
+  function renderBlock(title, count, list, isReserve){
+    var block = document.createElement("div");
+    block.className = "block" + (isReserve ? " reserve" : "");
+
+    var head = document.createElement("div");
+    head.className = "blockhead";
+    var h = document.createElement("h2");
+    h.textContent = title;
+    var c = document.createElement("span");
+    c.textContent = count;
+    head.appendChild(h);
+    head.appendChild(c);
+    block.appendChild(head);
+
+    var grid = document.createElement("div");
+    grid.className = "nums";
+    for (var i = 0; i < list.length; i++){
+      var s = document.createElement("span");
+      s.textContent = list[i];
+      grid.appendChild(s);
+    }
+    block.appendChild(grid);
+
+    var text = list.join(", ");
+    var tools = document.createElement("div");
+    tools.className = "tools";
+
+    var copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "mini";
+    copyBtn.textContent = "Copy list";
+    copyBtn.addEventListener("click", function(){ copy(text, copyBtn); });
+
+    var showBtn = document.createElement("button");
+    showBtn.type = "button";
+    showBtn.className = "mini";
+    showBtn.textContent = "Show as text";
+
+    var box = document.createElement("textarea");
+    box.className = "copytext";
+    box.readOnly = true;
+    box.value = text;
+    box.hidden = true;
+    showBtn.addEventListener("click", function(){
+      box.hidden = !box.hidden;
+      showBtn.textContent = box.hidden ? "Show as text" : "Hide text";
+      if (!box.hidden) box.focus();
+    });
+
+    tools.appendChild(copyBtn);
+    tools.appendChild(showBtn);
+    block.appendChild(tools);
+    block.appendChild(box);
+    return block;
+  }
+
+  $("form").addEventListener("submit", function(e){
+    e.preventDefault();
+    err.textContent = "";
+    out.innerHTML = "";
+
+    var N = intVal("total"), n = intVal("sample"), k = intVal("teams"), r = intVal("reserve");
+    var village = $("village").value.trim();
+    var seedText = $("seed").value.trim().toUpperCase();
+    if (!seedText){ seedText = makeSeed(); $("seed").value = seedText; }
+
+    if (!village){
+      err.textContent = "Add the village name so the saved record has an identifier.";
+      $("village").focus();
+      return;
+    }
+    if (isNaN(N) || isNaN(n) || isNaN(k) || isNaN(r)){
+      err.textContent = "Every box needs a whole number."; return;
+    }
+    if (N < 1 || n < 1 || k < 1){
+      err.textContent = "Frame, sample and enumerators all need to be at least 1."; return;
+    }
+    if (n > N){
+      err.textContent = "The sample (" + n + ") is larger than the frame (" + N + ")."; return;
+    }
+    if (k > n){
+      err.textContent = "You have more enumerators (" + k + ") than sampled numbers (" + n + ")."; return;
+    }
+    if (n + r > N){
+      err.textContent = "Sample plus reserves (" + (n + r) + ") is larger than the frame (" + N + "). Reduce the reserves."; return;
+    }
+
+    var rand = mulberry32(hashSeed(seedText + "|" + N + "|" + n + "|" + k + "|" + r));
+    var picked = shuffle(rand, distinct(rand, N, n + r)).map(function(x){ return x + 1; });
+
+    var main = picked.slice(0, n);
+    var reserves = picked.slice(n);
+
+    var base = Math.floor(n / k), extra = n % k;
+
+    var drawnAt = stamp();
+    var head = document.createElement("div");
+    head.className = "stamp";
+    [["Village", village], ["Seed", seedText], ["Drawn", drawnAt], ["Frame", "1 – " + N], ["Sampled", n + " of " + N]]
+      .forEach(function(pair){
+        var d = document.createElement("div");
+        d.textContent = pair[0];
+        var b = document.createElement("b");
+        b.textContent = pair[1];
+        d.appendChild(b);
+        head.appendChild(d);
+      });
+    out.appendChild(head);
+
+    var rows = [];
+    var cursor = 0;
+    for (var i = 0; i < k; i++){
+      var size = base + (i < extra ? 1 : 0);
+      var slice = main.slice(cursor, cursor + size);
+      out.appendChild(renderBlock("Enumerator " + (i + 1), size + " numbers", slice, false));
+      for (var j = 0; j < slice.length; j++) rows.push(["Enumerator " + (i + 1), j + 1, slice[j]]);
+      cursor += size;
+    }
+    if (reserves.length){
+      out.appendChild(renderBlock("Reserves", reserves.length + " numbers, in order", reserves, true));
+      for (var m = 0; m < reserves.length; m++) rows.push(["Reserve", m + 1, reserves[m]]);
+    }
+
+    var csv = buildCSV({
+      village: village, seed: seedText, drawn: drawnAt, N: N, n: n, k: k, r: r
+    }, rows);
+    var name = slug(village) + "_" + fileStamp() + "_" + seedText + ".csv";
+
+    var bar = document.createElement("div");
+    bar.className = "exports";
+
+    var saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.textContent = "Save to device";
+    saveBtn.addEventListener("click", function(){ saveFile(csv, name, saveBtn); });
+    bar.appendChild(saveBtn);
+
+    if (canShareFiles(csv, name)){
+      var shareBtn = document.createElement("button");
+      shareBtn.type = "button";
+      shareBtn.textContent = "Send or email";
+      shareBtn.addEventListener("click", function(){ shareFile(csv, name); });
+      bar.appendChild(shareBtn);
+    }
+
+    var fn = document.createElement("span");
+    fn.className = "filename";
+    fn.textContent = name;
+    bar.appendChild(fn);
+    out.appendChild(bar);
+
+    out.firstChild.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+})();
+</script>
+
+<script>
+/* Offline install and update handling. Kept separate from the draw logic:
+   if any of this fails, the app itself still works. */
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+
+  var standalone = window.matchMedia("(display-mode: standalone)").matches ||
+                   window.navigator.standalone === true;
+
+  // --- iOS: no install prompt exists, so show the manual instruction instead ---
+  var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (iOS && !standalone) $("installhint").hidden = false;
+
+  // --- Android / desktop: capture the install prompt and offer it once ---
+  var deferred = null;
+  window.addEventListener("beforeinstallprompt", function(e){
+    e.preventDefault();
+    deferred = e;
+    if (sessionStorage.getItem("install-dismissed") !== "1"){
+      $("installbar").hidden = false;
+    }
+  });
+  $("doinstall").addEventListener("click", function(){
+    $("installbar").hidden = true;
+    if (!deferred) return;
+    deferred.prompt();
+    deferred.userChoice["catch"](function(){}).then(function(){ deferred = null; });
+  });
+  $("dismissinstall").addEventListener("click", function(){
+    $("installbar").hidden = true;
+    try { sessionStorage.setItem("install-dismissed", "1"); } catch (e) {}
+  });
+  window.addEventListener("appinstalled", function(){ $("installbar").hidden = true; });
+
+  // --- service worker ---
+  if (!("serviceWorker" in navigator)) return;
+  if (location.protocol === "file:") return;   // service workers need http(s)
+
+  var reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", function(){
+    if (reloading) return;
+    reloading = true;
+    location.reload();
+  });
+
+  function watch(reg){
+    function offer(worker){
+      if (!worker) return;
+      // Only an update: a first install has no controller to replace.
+      if (!navigator.serviceWorker.controller) return;
+      $("updatebar").hidden = false;
+      $("doupdate").onclick = function(){
+        $("updatebar").hidden = true;
+        worker.postMessage("skip-waiting");
+      };
+    }
+    $("dismissupdate").addEventListener("click", function(){
+      $("updatebar").hidden = true;
+    });
+
+    offer(reg.waiting);
+    reg.addEventListener("updatefound", function(){
+      var w = reg.installing;
+      if (!w) return;
+      w.addEventListener("statechange", function(){
+        if (w.state === "installed") offer(w);
+      });
+    });
+
+    // Check for a new release when the app is opened or brought back up.
+    document.addEventListener("visibilitychange", function(){
+      if (!document.hidden) reg.update()["catch"](function(){});
+    });
+  }
+
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("sw.js", { scope: "./" })
+      .then(watch)["catch"](function(){ /* offline or blocked: app still runs */ });
+  });
+})();
+</script>
+</body>
+</html>
