@@ -15,12 +15,17 @@ device; nothing is sent anywhere.
 
 ## Getting it onto phones
 
-The service worker **needs an `https://` address**. It will not run from a file
-opened off the phone's storage (`file://`). Put the four items above on any static
-host — GitHub Pages, Netlify, S3, an office web server — at one URL, then send
-enumerators that link.
+**Live at: https://arthurriedel.github.io/AFN-Field-1/**
 
-They open it once with a signal. After that it works with no signal at all.
+Send enumerators that link. They open it once with a signal; after that it works
+with no signal at all.
+
+The service worker **needs an `https://` address**. It will not run from a file
+opened off the phone's storage (`file://`), so the hosted link is the only way to
+distribute it — not the HTML file itself.
+
+Hosting is GitHub Pages, serving the `main` branch from the repository root.
+Pushing to `main` publishes; there is no build step.
 
 - **iPhone (Safari):** Share button → **Add to Home Screen**. The app's own footer
   says this. Must be Safari; Chrome on iOS cannot install it.
@@ -31,7 +36,7 @@ They open it once with a signal. After that it works with no signal at all.
 1. Edit `index.html` (or anything else).
 2. **Bump `VERSION` in `sw.js`.** This is the only thing that pushes the change
    out; without it phones keep serving the copy they already have.
-3. Upload.
+3. `git push`. Pages redeploys in about a minute.
 
 Phones pick it up the next time the app is opened or brought back to the
 foreground while online: a banner offers **Update now**, and the app reloads on
